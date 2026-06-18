@@ -1,0 +1,22 @@
+# Sandbox de desenvolvimento local: App + Ollama. Banco = SQLite (arquivo em ./data).
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      APP_DATABASE_URL: sqlite:///./data/app.db
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  ollama:

@@ -1,0 +1,11 @@
+# Sandbox restrita dos agentes (REQ-007): limites rígidos de 4 GB de RAM e 2 CPUs.
+# Roda os gates do Harness sobre o código montado.
+services:
+  harness:
+    build: .
+    mem_limit: 4g
+    cpus: 2
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: ["bash", "ci/run_tests.sh"]
