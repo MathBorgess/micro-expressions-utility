@@ -1,6 +1,7 @@
 """Testes das heurísticas de sinais comportamentais."""
 
 from app.core.signals import (
+    MIN_FRAME_QUALITY,
     SIGNAL_GAZE_AWAY,
     SIGNAL_NOD_NEGATIVE,
     SIGNAL_NOD_POSITIVE,
@@ -70,6 +71,16 @@ def test_head_shake_negative() -> None:
 
 def test_detect_signals_empty() -> None:
     assert detect_signals([]) == []
+
+
+def test_detect_signals_skips_low_quality_frames() -> None:
+    frames = [
+        FrameMetrics(0, False, 0.1, 0.5, 0.5, quality_score=0.1),
+        FrameMetrics(100, False, 0.1, 0.5, 0.5, quality_score=0.1),
+        FrameMetrics(4000, False, 0.1, 0.5, 0.5, quality_score=0.9),
+    ]
+    events = detect_signals(frames, min_quality=MIN_FRAME_QUALITY)
+    assert events == []
 
 
 def test_detect_signals_sorted() -> None:

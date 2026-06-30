@@ -29,6 +29,12 @@ SIGNAL_WITHDRAW = "afastamento_da_tela"
 SIGNAL_NOD_POSITIVE = "aceno_cabeca_positivo"
 SIGNAL_NOD_NEGATIVE = "aceno_cabeca_negativo"
 
+MIN_FRAME_QUALITY = 0.35
+
+
+def _quality_frames(frames: list[FrameMetrics], min_quality: float) -> list[FrameMetrics]:
+    return [f for f in frames if f.quality_score >= min_quality]
+
 
 def _count_reversals(values: list[float]) -> int:
     """Conta inversões de direção (picos/vales) numa série."""
@@ -140,11 +146,14 @@ def detect_head_gestures(frames: list[FrameMetrics]) -> list[SignalEvent]:
     return events
 
 
-def detect_signals(frames: list[FrameMetrics]) -> list[SignalEvent]:
+def detect_signals(
+    frames: list[FrameMetrics], *, min_quality: float = MIN_FRAME_QUALITY
+) -> list[SignalEvent]:
     """Roda todas as heurísticas e devolve os eventos ordenados por tempo."""
+    filtered = _quality_frames(frames, min_quality)
     events: list[SignalEvent] = []
-    events.extend(detect_gaze_away(frames))
-    events.extend(detect_withdrawal(frames))
-    events.extend(detect_head_gestures(frames))
+    events.extend(detect_gaze_away(filtered))
+    events.extend(detect_withdrawal(filtered))
+    events.extend(detect_head_gestures(filtered))
     events.sort(key=lambda event: event.timestamp_ms)
     return events
