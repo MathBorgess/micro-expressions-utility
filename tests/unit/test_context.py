@@ -1,6 +1,6 @@
 """Testes do orçamento de contexto e da sumarização hierárquica."""
 
-from app.core.types import Segment
+from app.core.types import Segment, SignalEvent
 from app.services.context import build_context
 from app.services.fake_components import FakeSummarizer
 
@@ -13,9 +13,13 @@ def _neutral_segments() -> list[Segment]:
 
 
 def test_no_compression_within_budget() -> None:
-    result = build_context(_neutral_segments(), [], summarizer=FakeSummarizer(), max_tokens=100_000)
+    result = build_context(
+        _neutral_segments(), [], summarizer=FakeSummarizer(), max_tokens=100_000
+    )
     assert result.compressed is False
     assert "fala número 0" in result.prompt
+    assert "Observações comportamentais" in result.prompt
+    assert "Features conversacionais" in result.prompt
 
 
 def test_compression_keeps_protected_verbatim() -> None:
@@ -27,3 +31,13 @@ def test_compression_keeps_protected_verbatim() -> None:
     assert result.compressed is True
     assert "R$ 50.000" in result.prompt  # trecho protegido mantido íntegro
     assert "[resumo]" in result.prompt  # restante foi sumarizado
+    assert "Observações comportamentais" in result.prompt
+
+
+def test_observations_included_when_signals_match_segment() -> None:
+    segments = [Segment(0, 5000, "Cliente", "o preço está caro")]
+    signals = [SignalEvent(2000, "olhar_desviado", 0.8, meta={"duration_seconds": 3.0})]
+    result = build_context(segments, signals, summarizer=FakeSummarizer(), max_tokens=100_000)
+    assert "Contato visual reduzido" in result.prompt
+    assert "conf=0.95" in result.prompt
+    assert "transcrição" in result.prompt

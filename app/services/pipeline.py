@@ -115,7 +115,7 @@ def run_pipeline(
         else:
             context = build_context(
                 segments,
-                timeline,
+                signals,
                 summarizer=components.summarizer,
                 count_tokens=components.count_tokens,
                 max_tokens=max_context_tokens,

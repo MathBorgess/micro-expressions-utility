@@ -3,7 +3,9 @@
 from pathlib import Path
 
 from app.config import Settings
+from app.services.context import build_context
 from app.services.factory import build_components
+from app.services.fake_components import FakeSummarizer
 from app.services.pipeline import (
     AUDIO_FILE,
     REPORT_FILE,
@@ -46,3 +48,11 @@ def test_pipeline_force_regenerates(tmp_path: Path) -> None:
     (tmp_path / REPORT_FILE).write_text("CUSTOM", encoding="utf-8")
     result = _run(tmp_path, force=True)
     assert result.report_markdown != "CUSTOM"
+
+
+def test_pipeline_signals_wired_into_llm_context(tmp_path: Path) -> None:
+    result = _run(tmp_path)
+    context = build_context(result.segments, result.signals, summarizer=FakeSummarizer())
+    assert "Observações comportamentais" in context.prompt
+    assert "Features conversacionais" in context.prompt
+    assert "preço" in context.prompt.lower()
