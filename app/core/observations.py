@@ -29,9 +29,7 @@ def _hypotheses_for(signal_type: str) -> list[str]:
     return list(_DEFAULT_HYPOTHESES)
 
 
-def _modalities_for(
-    segment_index: int, conv: ConversationFeatures, has_video: bool
-) -> list[str]:
+def _modalities_for(segment_index: int, conv: ConversationFeatures, has_video: bool) -> list[str]:
     mods: list[str] = []
     if has_video:
         mods.append("vídeo")

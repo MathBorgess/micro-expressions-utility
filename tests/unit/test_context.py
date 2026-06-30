@@ -13,9 +13,7 @@ def _neutral_segments() -> list[Segment]:
 
 
 def test_no_compression_within_budget() -> None:
-    result = build_context(
-        _neutral_segments(), [], summarizer=FakeSummarizer(), max_tokens=100_000
-    )
+    result = build_context(_neutral_segments(), [], summarizer=FakeSummarizer(), max_tokens=100_000)
     assert result.compressed is False
     assert "fala número 0" in result.prompt
     assert "Observações comportamentais" in result.prompt

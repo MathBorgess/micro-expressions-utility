@@ -1,7 +1,7 @@
 # app/core/face_quality.py
 """Pontuação de qualidade de frame facial (0..1) para filtrar ruído de percepção."""
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import cv2
 import numpy as np

@@ -47,9 +47,8 @@ def test_full_pipeline_e2e(client: TestClient, engine: Engine, tmp_path: Path) -
     report = client.get(f"/api/v1/meetings/{meeting_id}/report").json()["report_markdown"]
     assert report
     for header in (
-        "## 1. Resumo Executivo",
-        "## 2. Objeções Identificadas",
-        "## 4. Próximos Passos Recomendados",
+        "## 1. Comportamentos Observados",
+        "## 8. Oportunidades e Coaching",
     ):
         assert header in report
 

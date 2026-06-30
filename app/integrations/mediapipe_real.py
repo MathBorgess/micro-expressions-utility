@@ -99,9 +99,7 @@ class MediaPipeFaceAnalyzer:
             xs = [float(p.x) * width for p in points]
             ys = [float(p.y) * height for p in points]
             face_bbox = (int(min(xs)), int(min(ys)), int(max(xs)), int(max(ys)))
-            quality_score = score_frame_quality(
-                frame_bgr, face_bbox, tracking_stability
-            )
+            quality_score = score_frame_quality(frame_bgr, face_bbox, tracking_stability)
         else:
             quality_score = 1.0
 
