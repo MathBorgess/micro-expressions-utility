@@ -28,3 +28,12 @@ def test_retries_once_with_lower_temperature() -> None:
     assert output.attempts == 2
     assert output.valid is True
     assert generator.temperatures[1] == 0.2
+
+
+def test_retries_on_forbidden_phrases() -> None:
+    bad = STATIC_REPORT_MARKDOWN + "\nO cliente perdeu confiança."
+    generator = _ScriptedGenerator([bad, STATIC_REPORT_MARKDOWN])
+    output = generate_validated_report(prompt="p", generator=generator)
+    assert output.attempts == 2
+    assert output.valid is True
+    assert generator.temperatures[1] == 0.2

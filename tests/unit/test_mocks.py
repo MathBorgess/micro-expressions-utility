@@ -21,8 +21,8 @@ def test_ollama_report_has_required_headers() -> None:
     report = generate_report("prompt")
     assert report.strip()
     for header in (
-        "## 1. Resumo Executivo",
-        "## 2. Objeções Identificadas",
-        "## 4. Próximos Passos Recomendados",
+        "## 1. Comportamentos Observados",
+        "## 4. Hipóteses Interpretativas",
+        "## 8. Oportunidades e Coaching",
     ):
         assert header in report
