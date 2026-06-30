@@ -3,6 +3,9 @@
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
+from app.core.face_quality import score_frame_quality
 from app.core.signals import detect_signals
 from app.core.types import FrameMetrics, SignalEvent
 from app.integrations.frames_cv2 import iter_frames
@@ -11,6 +14,30 @@ from app.integrations.frames_cv2 import iter_frames
 _LEFT_EYE = 33
 _RIGHT_EYE = 263
 _NOSE_TIP = 1
+_LEFT_IRIS = 468
+_RIGHT_IRIS = 473
+_KEY_LANDMARKS = (_NOSE_TIP, _LEFT_EYE, _RIGHT_EYE, _LEFT_IRIS, _RIGHT_IRIS)
+_YAW_SCALE_DEG = 45.0
+
+
+def _landmark_visibility(points: list[Any]) -> float:
+    """Estabilidade de tracking a partir da profundidade relativa dos landmarks-chave."""
+    scores: list[float] = []
+    for index in _KEY_LANDMARKS:
+        z = abs(float(getattr(points[index], "z", 0.0)))
+        scores.append(max(0.0, 1.0 - z * 2.0))
+    return sum(scores) / len(scores)
+
+
+def _head_yaw_deg(nose: Any, left_eye: Any, right_eye: Any) -> float:
+    """Aproximação de yaw pela assimetria das distâncias olho-nariz."""
+    dist_left = abs(float(nose.x) - float(left_eye.x))
+    dist_right = abs(float(right_eye.x) - float(nose.x))
+    total = dist_left + dist_right
+    if total <= 1e-9:
+        return 0.0
+    asymmetry = (dist_right - dist_left) / total
+    return asymmetry * _YAW_SCALE_DEG
 
 
 class MediaPipeFaceAnalyzer:
@@ -28,28 +55,67 @@ class MediaPipeFaceAnalyzer:
             for timestamp_ms, frame in iter_frames(video_path):
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 result = face_mesh.process(rgb)
-                metric = self._to_metrics(result, timestamp_ms)
+                metric = self._to_metrics(result, timestamp_ms, frame_bgr=frame)
                 if metric is not None:
                     metrics.append(metric)
         finally:
             face_mesh.close()
         return detect_signals(metrics)
 
-    def _to_metrics(self, result: Any, timestamp_ms: int) -> FrameMetrics | None:
+    def _to_metrics(
+        self,
+        result: Any,
+        timestamp_ms: int,
+        frame_bgr: np.ndarray | None = None,
+    ) -> FrameMetrics | None:
         landmarks = getattr(result, "multi_face_landmarks", None)
         if not landmarks:
             return None
         points = landmarks[0].landmark
+        if len(points) <= _RIGHT_IRIS:
+            return None
+
         nose = points[_NOSE_TIP]
         left_eye = points[_LEFT_EYE]
         right_eye = points[_RIGHT_EYE]
-        eye_span = abs(right_eye.x - left_eye.x)
-        gaze_centered = abs(nose.x - 0.5) < 0.2 and abs(nose.y - 0.5) < 0.25
+        left_iris = points[_LEFT_IRIS]
+        right_iris = points[_RIGHT_IRIS]
+
+        eye_center_x = (float(left_eye.x) + float(right_eye.x)) / 2.0
+        eye_center_y = (float(left_eye.y) + float(right_eye.y)) / 2.0
+        iris_center_x = (float(left_iris.x) + float(right_iris.x)) / 2.0
+        iris_center_y = (float(left_iris.y) + float(right_iris.y)) / 2.0
+
+        gaze_offset_x = iris_center_x - eye_center_x
+        gaze_offset_y = iris_center_y - eye_center_y
+        head_yaw_deg = _head_yaw_deg(nose, left_eye, right_eye)
+        looking_at_screen = abs(gaze_offset_x) < 0.08 and abs(head_yaw_deg) < 15.0
+
+        eye_span = abs(float(right_eye.x) - float(left_eye.x))
+        tracking_stability = _landmark_visibility(points)
+
+        if frame_bgr is not None:
+            height, width = frame_bgr.shape[:2]
+            xs = [float(p.x) * width for p in points]
+            ys = [float(p.y) * height for p in points]
+            face_bbox = (int(min(xs)), int(min(ys)), int(max(xs)), int(max(ys)))
+            quality_score = score_frame_quality(
+                frame_bgr, face_bbox, tracking_stability
+            )
+        else:
+            quality_score = 1.0
+
+        confidence = round(quality_score * tracking_stability, 3)
+
         return FrameMetrics(
             timestamp_ms=timestamp_ms,
-            looking_at_screen=gaze_centered,
+            looking_at_screen=looking_at_screen,
             face_size_ratio=eye_span,
             face_center_x=float(nose.x),
             face_center_y=float(nose.y),
-            confidence=1.0,
+            confidence=confidence,
+            quality_score=quality_score,
+            head_yaw_deg=head_yaw_deg,
+            gaze_offset_x=gaze_offset_x,
+            gaze_offset_y=gaze_offset_y,
         )
