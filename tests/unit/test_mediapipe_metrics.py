@@ -4,7 +4,8 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from app.integrations.mediapipe_real import MediaPipeFaceAnalyzer
+from app.core.types import FrameMetrics
+from app.integrations.mediapipe_real import MediaPipeFaceAnalyzer, _apply_ema_to_metrics
 
 
 class _Pt:
@@ -37,6 +38,16 @@ def test_to_metrics_uses_variable_confidence() -> None:
     assert metric is not None
     assert metric.confidence <= 1.0
     assert hasattr(metric, "gaze_offset_x")
+    assert hasattr(metric, "head_pitch_deg")
+
+
+def test_to_metrics_pitch_from_nose_vs_eyes() -> None:
+    analyzer = MediaPipeFaceAnalyzer()
+    points = _fake_landmarks(nose=(0.52, 0.55), left_eye=(0.40, 0.45), right_eye=(0.60, 0.45))
+    result = SimpleNamespace(multi_face_landmarks=[SimpleNamespace(landmark=points)])
+    metric = analyzer._to_metrics(result, timestamp_ms=500, frame_bgr=None)
+    assert metric is not None
+    assert metric.head_pitch_deg > 0.0
 
 
 def test_to_metrics_centered_gaze_looks_at_screen() -> None:
@@ -75,3 +86,13 @@ def test_to_metrics_returns_none_without_landmarks() -> None:
     analyzer = MediaPipeFaceAnalyzer()
     result = SimpleNamespace(multi_face_landmarks=None)
     assert analyzer._to_metrics(result, timestamp_ms=0, frame_bgr=None) is None
+
+
+def test_apply_ema_smooths_spatial_metrics() -> None:
+    frames = [
+        FrameMetrics(0, True, 0.1, 0.0, 0.0, gaze_offset_x=0.0, gaze_offset_y=0.0),
+        FrameMetrics(100, True, 0.1, 1.0, 1.0, gaze_offset_x=1.0, gaze_offset_y=1.0),
+    ]
+    smoothed = _apply_ema_to_metrics(frames)
+    assert smoothed[1].face_center_x == 0.3
+    assert smoothed[1].gaze_offset_x == 0.3

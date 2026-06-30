@@ -19,7 +19,7 @@ _DEFAULT_HYPOTHESES = [
     "Mudança postural sem significado afetivo específico",
     "Resposta a estímulo externo à conversa",
 ]
-_MULTIMODAL_BONUS = 0.15
+_DISENGAGEMENT_SIGNALS = frozenset({"olhar_desviado", "afastamento_da_tela"})
 _MAX_CONFIDENCE = 0.95
 
 
@@ -27,6 +27,15 @@ def _hypotheses_for(signal_type: str) -> list[str]:
     if signal_type == "olhar_desviado":
         return list(_GAZE_HYPOTHESES)
     return list(_DEFAULT_HYPOTHESES)
+
+
+def _modality_agreement_bonus(signal_type: str, has_verbal_objection: bool) -> float:
+    """Multiplicador de confiança por alinhamento multimodal (design spec §8)."""
+    if signal_type in _DISENGAGEMENT_SIGNALS and has_verbal_objection:
+        return 1.0
+    if has_verbal_objection:
+        return 0.8
+    return 0.6
 
 
 def _modalities_for(segment_index: int, conv: ConversationFeatures, has_video: bool) -> list[str]:
@@ -50,15 +59,12 @@ def build_observations(
 
     for index, segment in enumerate(sorted_segments):
         matched = signals_in_segment(segment, signals)
+        has_verbal_objection = index in conversation.verbal_objection_segments
         for signal in matched:
             base_conf = min(signal.confidence, 1.0)
             modalities = _modalities_for(index, conversation, has_video=True)
-            confidence = base_conf
-            if "transcrição" in modalities and signal.signal_type in (
-                "olhar_desviado",
-                "afastamento_da_tela",
-            ):
-                confidence = min(_MAX_CONFIDENCE, base_conf + _MULTIMODAL_BONUS)
+            bonus = _modality_agreement_bonus(signal.signal_type, has_verbal_objection)
+            confidence = min(_MAX_CONFIDENCE, base_conf * bonus)
 
             observations.append(
                 BehavioralObservation(

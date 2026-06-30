@@ -37,5 +37,5 @@ def test_observations_included_when_signals_match_segment() -> None:
     signals = [SignalEvent(2000, "olhar_desviado", 0.8, meta={"duration_seconds": 3.0})]
     result = build_context(segments, signals, summarizer=FakeSummarizer(), max_tokens=100_000)
     assert "Contato visual reduzido" in result.prompt
-    assert "conf=0.95" in result.prompt
+    assert "conf=0.8" in result.prompt
     assert "transcrição" in result.prompt

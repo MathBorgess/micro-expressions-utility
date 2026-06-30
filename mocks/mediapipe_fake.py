@@ -12,7 +12,7 @@ FAKE_SIGNALS: list[dict[str, Any]] = [
     },
 ]
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def analyze(video_path: str = "") -> list[dict[str, Any]]:

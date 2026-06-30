@@ -18,15 +18,26 @@ def test_gaze_away_produces_observation_not_emotion() -> None:
     assert "medo" not in obs[0].observation.lower()
     assert "rejeit" not in obs[0].observation.lower()
     assert len(obs[0].hypotheses) >= 2
-    assert obs[0].confidence <= 0.8
+    assert obs[0].confidence == round(0.8 * 0.6, 3)
 
 
-def test_multimodal_boost_when_objection_and_gaze() -> None:
+def test_multimodal_bonus_when_objection_and_gaze() -> None:
     signals = [
         SignalEvent(1000, "olhar_desviado", 0.7, meta={"duration_seconds": 4.0}),
     ]
     segments = [Segment(0, 5000, "Cliente", "o preço está caro")]
     conv = ConversationFeatures([], [0], [])
     obs = build_observations(signals, segments, conv)
-    assert obs[0].confidence > 0.7
-    assert "transcrição" in obs[0].modalities or "vídeo" in obs[0].modalities
+    assert obs[0].confidence == round(0.7 * 1.0, 3)
+    assert "transcrição" in obs[0].modalities
+    assert "vídeo" in obs[0].modalities
+
+
+def test_video_only_gets_lower_modality_bonus() -> None:
+    signals = [
+        SignalEvent(1000, "olhar_desviado", 0.7, meta={"duration_seconds": 4.0}),
+    ]
+    segments = [Segment(0, 5000, "Cliente", "sobre o produto")]
+    conv = ConversationFeatures([], [], [])
+    obs = build_observations(signals, segments, conv)
+    assert obs[0].confidence == round(0.7 * 0.6, 3)

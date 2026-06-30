@@ -13,4 +13,5 @@ def test_frame_metrics_optional_fields_default() -> None:
     )
     assert m.quality_score == 1.0
     assert m.head_yaw_deg == 0.0
+    assert m.head_pitch_deg == 0.0
     assert m.gaze_offset_x == 0.0

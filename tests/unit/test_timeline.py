@@ -1,7 +1,7 @@
 """Testes do timeline builder e da heurística de resistência."""
 
 from app.core.timeline import build_timeline, has_resistance, signals_in_segment
-from app.core.types import Segment, SignalEvent
+from app.core.types import BehavioralObservation, Segment, SignalEvent
 
 
 def _segment(start: int, end: int, text: str, speaker: str = "Cliente") -> Segment:
@@ -26,6 +26,27 @@ def test_build_timeline_groups_signals() -> None:
     assert len(timeline) == 2
     assert len(timeline[0].signals) == 1
     assert timeline[1].signals == []
+    assert timeline[0].observations == []
+
+
+def test_build_timeline_attaches_observations() -> None:
+    segments = [_segment(0, 5000, "preço alto")]
+    signals = [SignalEvent(3000, "olhar_desviado", 0.9)]
+    observations = [
+        BehavioralObservation(
+            timestamp_ms=3000,
+            observation="Contato visual reduzido por período prolongado",
+            evidence={"signal_type": "olhar_desviado"},
+            hypotheses=["Processamento cognitivo ou reflexão"],
+            confidence=0.54,
+            modalities=["vídeo"],
+        )
+    ]
+    timeline = build_timeline(segments, signals, observations=observations)
+    assert len(timeline[0].observations) == 1
+    assert timeline[0].observations[0]["timestamp_ms"] == 3000
+    payload = timeline[0].to_dict()
+    assert "observations" in payload
 
 
 def test_has_resistance_true_when_keyword_and_disengagement() -> None:

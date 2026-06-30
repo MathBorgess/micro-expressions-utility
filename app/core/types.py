@@ -140,12 +140,16 @@ class TimelineEntry:
     speaker: str
     text: str
     signals: list[dict[str, Any]] = field(default_factory=list)
+    observations: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "start_time": self.start_time,
             "end_time": self.end_time,
             "speaker": self.speaker,
             "text": self.text,
             "signals": self.signals,
         }
+        if self.observations:
+            payload["observations"] = self.observations
+        return payload

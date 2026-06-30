@@ -13,7 +13,7 @@ from statistics import mean
 
 from app.core.types import FrameMetrics, SignalEvent
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # Limiares (ajustáveis). Mantidos explícitos para facilitar tuning e teste.
 GAZE_AWAY_MIN_SECONDS = 3.0

@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from app.core.conversation import extract_conversation_features
+from app.core.observations import build_observations
 from app.core.signals import SCHEMA_VERSION
 from app.core.telemetry import Telemetry, measure
 from app.core.timeline import build_timeline
@@ -105,7 +107,9 @@ def run_pipeline(
 
     # 4) timeline-builder
     with measure(telemetry, "timeline-builder"):
-        timeline = build_timeline(segments, signals)
+        conversation = extract_conversation_features(segments)
+        observations = build_observations(signals, segments, conversation)
+        timeline = build_timeline(segments, signals, observations=observations)
         _save_json(timeline_path, [e.to_dict() for e in timeline])
 
     # 5) llm-analysis (orçamento de tokens + compressão + validação/retry)

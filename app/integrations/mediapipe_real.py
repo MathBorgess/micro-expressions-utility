@@ -18,6 +18,8 @@ _LEFT_IRIS = 468
 _RIGHT_IRIS = 473
 _KEY_LANDMARKS = (_NOSE_TIP, _LEFT_EYE, _RIGHT_EYE, _LEFT_IRIS, _RIGHT_IRIS)
 _YAW_SCALE_DEG = 45.0
+_PITCH_SCALE_DEG = 45.0
+_EMA_ALPHA = 0.3
 
 
 def _landmark_visibility(points: list[Any]) -> float:
@@ -40,6 +42,42 @@ def _head_yaw_deg(nose: Any, left_eye: Any, right_eye: Any) -> float:
     return asymmetry * _YAW_SCALE_DEG
 
 
+def _head_pitch_deg(nose: Any, left_eye: Any, right_eye: Any) -> float:
+    """Aproximação de pitch pela posição vertical do nariz vs centro dos olhos."""
+    eye_center_y = (float(left_eye.y) + float(right_eye.y)) / 2.0
+    pitch_offset = float(nose.y) - eye_center_y
+    return pitch_offset * _PITCH_SCALE_DEG
+
+
+def _ema_smooth(prev: float, current: float, alpha: float = _EMA_ALPHA) -> float:
+    return alpha * current + (1.0 - alpha) * prev
+
+
+def _apply_ema_to_metrics(metrics: list[FrameMetrics]) -> list[FrameMetrics]:
+    """Suaviza métricas espaciais frame-a-frame para reduzir jitter de landmarks."""
+    if not metrics:
+        return metrics
+    smoothed: list[FrameMetrics] = []
+    prev = metrics[0]
+    smoothed.append(prev)
+    for current in metrics[1:]:
+        prev = FrameMetrics(
+            timestamp_ms=current.timestamp_ms,
+            looking_at_screen=current.looking_at_screen,
+            face_size_ratio=current.face_size_ratio,
+            face_center_x=_ema_smooth(prev.face_center_x, current.face_center_x),
+            face_center_y=_ema_smooth(prev.face_center_y, current.face_center_y),
+            confidence=current.confidence,
+            quality_score=current.quality_score,
+            head_yaw_deg=current.head_yaw_deg,
+            head_pitch_deg=current.head_pitch_deg,
+            gaze_offset_x=_ema_smooth(prev.gaze_offset_x, current.gaze_offset_x),
+            gaze_offset_y=_ema_smooth(prev.gaze_offset_y, current.gaze_offset_y),
+        )
+        smoothed.append(prev)
+    return smoothed
+
+
 class MediaPipeFaceAnalyzer:
     """Extrai métricas por frame via Face Mesh e aplica as heurísticas de sinais."""
 
@@ -60,7 +98,7 @@ class MediaPipeFaceAnalyzer:
                     metrics.append(metric)
         finally:
             face_mesh.close()
-        return detect_signals(metrics)
+        return detect_signals(_apply_ema_to_metrics(metrics))
 
     def _to_metrics(
         self,
@@ -89,6 +127,7 @@ class MediaPipeFaceAnalyzer:
         gaze_offset_x = iris_center_x - eye_center_x
         gaze_offset_y = iris_center_y - eye_center_y
         head_yaw_deg = _head_yaw_deg(nose, left_eye, right_eye)
+        head_pitch_deg = _head_pitch_deg(nose, left_eye, right_eye)
         looking_at_screen = abs(gaze_offset_x) < 0.08 and abs(head_yaw_deg) < 15.0
 
         eye_span = abs(float(right_eye.x) - float(left_eye.x))
@@ -114,6 +153,7 @@ class MediaPipeFaceAnalyzer:
             confidence=confidence,
             quality_score=quality_score,
             head_yaw_deg=head_yaw_deg,
+            head_pitch_deg=head_pitch_deg,
             gaze_offset_x=gaze_offset_x,
             gaze_offset_y=gaze_offset_y,
         )
