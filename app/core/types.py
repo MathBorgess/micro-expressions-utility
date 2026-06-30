@@ -86,6 +86,49 @@ class FrameMetrics:
     face_center_x: float  # 0..1
     face_center_y: float  # 0..1
     confidence: float = 1.0
+    quality_score: float = 1.0
+    head_yaw_deg: float = 0.0
+    head_pitch_deg: float = 0.0
+    gaze_offset_x: float = 0.0
+    gaze_offset_y: float = 0.0
+
+
+@dataclass
+class BehavioralObservation:
+    """Observação comportamental com evidências e hipóteses para o relatório."""
+
+    timestamp_ms: int
+    observation: str
+    evidence: dict[str, object]
+    hypotheses: list[str]
+    confidence: float
+    modalities: list[str]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "timestamp_ms": self.timestamp_ms,
+            "observation": self.observation,
+            "evidence": self.evidence,
+            "hypotheses": self.hypotheses,
+            "confidence": self.confidence,
+            "modalities": self.modalities,
+        }
+
+
+@dataclass
+class ConversationFeatures:
+    """Features extraídas da transcrição para enriquecer o contexto do LLM."""
+
+    response_gaps_ms: list[int]
+    verbal_objection_segments: list[int]
+    verbal_agreement_segments: list[int]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "response_gaps_ms": self.response_gaps_ms,
+            "verbal_objection_segments": self.verbal_objection_segments,
+            "verbal_agreement_segments": self.verbal_agreement_segments,
+        }
 
 
 @dataclass
