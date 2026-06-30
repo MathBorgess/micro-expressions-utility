@@ -2,18 +2,37 @@
 
 import re
 
-from app.core.types import Segment, TimelineEntry
+from app.core.types import (
+    BehavioralObservation,
+    ConversationFeatures,
+    Segment,
+    TimelineEntry,
+)
+
+FORBIDDEN_EXAMPLE_PHRASES = (
+    "perdeu confiança",
+    "ficou com medo",
+    "odiou",
+    "rejeitou o produto",
+    "não gostou",
+)
 
 SYSTEM_PROMPT = (
-    "Você é um analista comercial sênior. A partir da transcrição e da timeline de sinais "
-    "comportamentais de uma reunião de vendas, gere um relatório em Markdown em português, "
-    "usando EXATAMENTE estes títulos e nesta ordem:\n"
+    "Você é um analista de comunicação comercial. "
+    "NUNCA afirme emoções, intenções internas ou atitudes sem evidência multimodal explícita.\n"
+    "Separe: (1) Observação mensurável (2) Hipótese com alternativas (3) Recomendação.\n"
+    "Use 'pode indicar' — nunca certeza.\n"
+    "Cite timestamps [HH:MM:SS] e modalidade (vídeo/transcrição/silêncio).\n"
+    "Estrutura OBRIGATÓRIA:\n"
     "# Relatório de Análise Comercial\n"
-    "## 1. Resumo Executivo\n"
-    "## 2. Objeções Identificadas\n"
-    "## 3. Momentos de Alto Engajamento\n"
-    "## 4. Próximos Passos Recomendados\n"
-    "Não invente dados. Cite timestamps e evidências verbais quando houver."
+    "## 1. Comportamentos Observados\n"
+    "## 2. Linha do Tempo\n"
+    "## 3. Mudanças de Comportamento\n"
+    "## 4. Hipóteses Interpretativas\n"
+    "## 5. Contexto Conversacional\n"
+    "## 6. Confiança e Limitações\n"
+    "## 7. Perguntas de Follow-up Sugeridas\n"
+    "## 8. Oportunidades e Coaching\n"
 )
 
 # Trechos protegidos (questionário Q89): valores monetários, prazos e objeções explícitas.
@@ -34,6 +53,7 @@ def build_transcript_text(segments: list[Segment]) -> str:
 
 
 def build_signals_text(timeline: list[TimelineEntry]) -> str:
+    """Deprecated: prefer build_observations_text para o fluxo evidence-first."""
     lines: list[str] = []
     for entry in timeline:
         if not entry.signals:
@@ -43,9 +63,34 @@ def build_signals_text(timeline: list[TimelineEntry]) -> str:
     return "\n".join(lines)
 
 
-def build_prompt(transcript_text: str, signals_text: str) -> str:
+def build_observations_text(observations: list[BehavioralObservation]) -> str:
+    lines: list[str] = []
+    for ob in observations:
+        hyps = "; ".join(ob.hypotheses)
+        mods = ", ".join(ob.modalities)
+        lines.append(
+            f"[{ob.timestamp_ms}ms] {ob.observation} | conf={ob.confidence} | "
+            f"modalidades={mods} | hipóteses: {hyps}"
+        )
+    return "\n".join(lines)
+
+
+def build_conversation_text(features: ConversationFeatures) -> str:
+    return (
+        f"Gaps de resposta (ms): {features.response_gaps_ms}\n"
+        f"Segmentos com objeção verbal: {features.verbal_objection_segments}\n"
+        f"Segmentos com concordância verbal: {features.verbal_agreement_segments}"
+    )
+
+
+def build_prompt(
+    transcript_text: str,
+    observations_text: str,
+    conversation_text: str,
+) -> str:
     return (
         f"{SYSTEM_PROMPT}\n\n"
         f"## Transcrição\n{transcript_text}\n\n"
-        f"## Sinais comportamentais\n{signals_text}\n"
+        f"## Observações comportamentais (pré-processadas)\n{observations_text}\n\n"
+        f"## Features conversacionais\n{conversation_text}\n"
     )
