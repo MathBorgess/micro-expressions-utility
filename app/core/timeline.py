@@ -16,9 +16,7 @@ def observations_in_segment(
     segment: Segment, observations: list[BehavioralObservation]
 ) -> list[BehavioralObservation]:
     """Observações cujo timestamp cai dentro do intervalo [start_ms, end_ms] do segmento."""
-    return [
-        o for o in observations if segment.start_ms <= o.timestamp_ms <= segment.end_ms
-    ]
+    return [o for o in observations if segment.start_ms <= o.timestamp_ms <= segment.end_ms]
 
 
 def build_timeline(
